@@ -1,0 +1,29 @@
+{
+  "name": "paidmcp-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local stdio proxy for paid MCP servers with x402 handling.",
+  "bin": {
+    "paidmcp": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "build": "tsc",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "@tetherto/wdk-wallet-evm": "latest",
+    "@x402/evm": "latest",
+    "@x402/fetch": "latest",
+    "bip39": "latest",
+    "commander": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}
