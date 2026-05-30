@@ -1,65 +1,157 @@
-# paidmcp/client
+# paidmcp-client
 
 [![npm version](https://img.shields.io/npm/v/paidmcp-client)](https://www.npmjs.com/package/paidmcp-client)
 [![license](https://img.shields.io/npm/l/paidmcp-client)](LICENSE)
 
-Local stdio proxy that lets Cursor and Claude Desktop call paid MCP servers protected by x402.
+`paidmcp-client` is a local stdio MCP proxy for paid MCP servers that use x402.
 
-## Prerequisites
+It sits between your MCP client (Cursor or Claude Desktop) and a remote paid MCP endpoint, then handles payment negotiation and settlement automatically on each paid tool call.
+
+## Requirements
 
 - Node.js 20+
 - npm
 
-## Install from source (this repository)
+## Install
 
-Run inside `client/`:
+Use one of these options:
+
+```bash
+# run without installing globally
+npx paidmcp-client --help
+
+# or install globally
+npm install -g paidmcp-client
+```
+
+After global install, use the `paidmcp` command directly:
+
+```bash
+paidmcp --help
+```
+
+## Quick start
+
+1. Create a local payer wallet:
+
+```bash
+npx paidmcp-client init
+```
+
+This creates `~/.paidmcp/config.json` with:
+
+- your seed phrase
+- RPC URLs for Base and Plasma
+- token addresses for USDC (Base) and USDT0 (Plasma)
+
+2. Check wallet address and balances:
+
+```bash
+npx paidmcp-client wallet
+```
+
+3. Fund the wallet with USDC on Base or USDT0 on Plasma.
+
+4. Connect to your paid MCP endpoint:
+
+```bash
+npx paidmcp-client connect https://your-mcp-host.dev
+```
+
+5. Add the printed snippet to your MCP client config (Cursor or Claude Desktop).
+
+## CLI commands
+
+```bash
+npx paidmcp-client init
+npx paidmcp-client wallet
+npx paidmcp-client connect <endpoint>
+npx paidmcp-client run <endpoint>
+```
+
+Examples:
+
+```bash
+npx paidmcp-client connect http://localhost:4021
+npx paidmcp-client run https://your-mcp-host.dev
+```
+
+## Configure Cursor or Claude Desktop
+
+Generate a config snippet for a paid MCP endpoint:
+
+```bash
+npx paidmcp-client connect https://your-mcp-host.dev
+```
+
+The command prints JSON like:
+
+```json
+{
+  "mcpServers": {
+    "your-mcp-host-dev": {
+      "command": "node",
+      "args": ["/path/to/paidmcp-client/dist/cli.js", "run", "https://your-mcp-host.dev"]
+    }
+  }
+}
+```
+
+Paste this into your MCP config file and restart your MCP client if needed.
+
+## Local development (from source)
+
+Inside `client/`:
 
 ```bash
 npm install
 npm run build
 ```
 
-### Commands (from source)
+Run commands from source:
 
-| Goal                                           | Command (run inside `client/`)                                                   |
-| ---------------------------------------------- | -------------------------------------------------------------------------------- |
-| Create payer wallet (`~/.paidmcp/config.json`) | `npm run init`                                                                   |
-| Show payer wallet and balances                 | `npm run wallet`                                                                 |
-| Print MCP config snippet                       | `npm run connect -- http://localhost:4021`                                       |
-| Run stdio proxy                                | `npm run run -- http://localhost:4021`                                           |
-| Run with MCP Inspector                         | `npx @modelcontextprotocol/inspector node dist/cli.js run http://localhost:4021` |
+```bash
+npm run init
+npm run wallet
+npm run connect -- http://localhost:4021
+npm run run -- http://localhost:4021
+```
 
-## Published usage (after npm release)
+With MCP Inspector:
 
-If the package is published, you can run:
+```bash
+npx @modelcontextprotocol/inspector node dist/cli.js run http://localhost:4021
+```
+
+## Troubleshooting
+
+### `paidmcp: command not found`
+
+Use one of:
+
+- `npx paidmcp-client <command>`
+- `npm install -g paidmcp-client` then `paidmcp <command>`
+- from source: `npm run <script>`
+
+### Missing config error
+
+If you see an error like `Run "paidmcp init" first`, create the local config:
 
 ```bash
 npx paidmcp-client init
-npx paidmcp-client wallet
-npx paidmcp-client run https://your-mcp-host.dev
 ```
 
-## Why `paidmcp: command not found` happens
+### No balance / payment failure
 
-`paidmcp` is a package binary. From a fresh clone it is not on your shell path. Use the from-source commands (`npm run init`, `npm run wallet`, `npm run run -- <endpoint>`) unless you installed globally, linked locally, or use `npx paidmcp-client`.
+- verify your wallet has funded USDC (Base) or USDT0 (Plasma)
+- verify endpoint URL and network availability
+- run `npx paidmcp-client wallet` to confirm balances are readable
 
-## Tests and debug utilities
+## Security notes
 
-Run inside `client/`:
-
-| Goal                                   | Command                             | When to use                                                                   |
-| -------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
-| Smoke test paid call end-to-end        | `npm run test:paid-fetch`           | You want one realistic paid request using your funded payer wallet.           |
-| Inspect Base x402 flow in detail       | `npm run debug:x402-base`           | You need step-by-step 402, payload, verify, and settle behavior for Base.     |
-| Inspect Plasma x402 flow in detail     | `npm run debug:x402-plasma`         | You are debugging the Plasma USDT0 route with Semantic facilitator.           |
-| Compare Plasma facilitator behavior    | `npm run debug:plasma-facilitators` | You want side-by-side verify/settle responses for Plasma across facilitators. |
-| Probe multiple facilitators quickly    | `npm run debug:facilitator-matrix`  | You need a broad compatibility snapshot for Base facilitator endpoints.       |
-| Test settle with resource URL variants | `npm run debug:settle-resource-url` | You need to validate resource URL handling in settle responses.               |
-
-Scripts are grouped by intent:
-
-- `scripts/tests/*` for repeatable checks.
-- `scripts/debug/*` for deep troubleshooting flows.
+- `~/.paidmcp/config.json` contains your seed phrase in plaintext.
+- Never commit or share this file.
+- Back up your seed phrase securely. Losing it means losing access to funds.
 
 ## License
 
