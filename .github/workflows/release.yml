@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish as a GitHub Release"
+        required: true
+        default: "v0.1.0"
+      publish_npm:
+        description: "Also publish to npm"
+        type: boolean
+        default: false
 
 permissions:
   contents: write # create GitHub Release
@@ -14,28 +24,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
       - uses: actions/setup-node@v4
+        if: github.event_name == 'push' || inputs.publish_npm
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
           cache: npm
 
       - name: Verify tag matches package.json version
+        if: github.event_name == 'push' || inputs.publish_npm
         run: |
           PKG_VERSION="$(node -p "require('./package.json').version")"
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          TAG_VERSION="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+          TAG_VERSION="${TAG_VERSION#v}"
           if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME ($TAG_VERSION) does not match package.json version $PKG_VERSION"
+            echo "::error::Tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
             exit 1
           fi
 
       - run: npm ci
+        if: github.event_name == 'push' || inputs.publish_npm
+
       - run: npm run check
+        if: github.event_name == 'push' || inputs.publish_npm
+
       - run: npm publish --provenance
+        if: github.event_name == 'push' || inputs.publish_npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           generate_release_notes: true
