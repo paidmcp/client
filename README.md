@@ -1,5 +1,8 @@
 # paidmcp/client
 
+[![npm version](https://img.shields.io/npm/v/paidmcp-client)](https://www.npmjs.com/package/paidmcp-client)
+[![license](https://img.shields.io/npm/l/paidmcp-client)](LICENSE)
+
 Local stdio proxy that lets Cursor and Claude Desktop call paid MCP servers protected by x402.
 
 ## Prerequisites
