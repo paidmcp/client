@@ -23,7 +23,13 @@
     "init": "node dist/cli.js init",
     "wallet": "node dist/cli.js wallet",
     "connect": "node dist/cli.js connect",
-    "run": "node dist/cli.js run"
+    "run": "node dist/cli.js run",
+    "test:paid-fetch": "node scripts/tests/paid-fetch.smoke.mjs http://localhost:4021/tools/get_price",
+    "debug:x402-base": "node scripts/debug/x402-base-flow.debug.mjs",
+    "debug:x402-plasma": "node scripts/debug/x402-plasma-flow.debug.mjs",
+    "debug:plasma-facilitators": "node scripts/debug/plasma-facilitator-compare.debug.mjs",
+    "debug:facilitator-matrix": "node scripts/debug/facilitator-matrix.debug.mjs",
+    "debug:settle-resource-url": "node scripts/debug/settle-resource-url.debug.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

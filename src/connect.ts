@@ -17,9 +17,9 @@ export function printConnectSnippet(endpoint: string): void {
     mcpServers: {
       [name]: {
         command: "node",
-        args: [cliPath, "run", endpoint]
-      }
-    }
+        args: [cliPath, "run", endpoint],
+      },
+    },
   };
 
   console.log("Add this to your Cursor or Claude Desktop MCP config:");

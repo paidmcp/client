@@ -1,6 +1,9 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 import WalletManagerEvm from "@tetherto/wdk-wallet-evm";
 import { ClientEvmSigner, ExactEvmScheme } from "@x402/evm";
 import { x402Client } from "@x402/fetch";
@@ -13,8 +16,12 @@ export async function runProxy(endpoint: string): Promise<void> {
   const baseUrl = endpoint.replace(/\/+$/, "");
 
   // Same key on both chains; provider differs only for balance reads.
-  const baseAccount = await new WalletManagerEvm(cfg.seedPhrase, { provider: cfg.baseRpcUrl }).getAccount();
-  const plasmaAccount = await new WalletManagerEvm(cfg.seedPhrase, { provider: cfg.plasmaRpcUrl }).getAccount();
+  const baseAccount = await new WalletManagerEvm(cfg.seedPhrase, {
+    provider: cfg.baseRpcUrl,
+  }).getAccount();
+  const plasmaAccount = await new WalletManagerEvm(cfg.seedPhrase, {
+    provider: cfg.plasmaRpcUrl,
+  }).getAccount();
 
   // WDK account -> x402 ClientEvmSigner. Signing is key-based (domain comes from the
   // requirement), so the base account signs valid payments for either chain.
@@ -23,7 +30,9 @@ export async function runProxy(endpoint: string): Promise<void> {
     // x402 passes EIP-712 typed data; WDK's ethers-based signer derives primaryType
     // from `types`. The shapes match at runtime; the cast bridges stricter ethers types.
     signTypedData: (message) =>
-      baseAccount.signTypedData(message as Parameters<typeof baseAccount.signTypedData>[0]) as Promise<`0x${string}`>
+      baseAccount.signTypedData(
+        message as Parameters<typeof baseAccount.signTypedData>[0],
+      ) as Promise<`0x${string}`>,
   };
 
   // Prefetch balances once so the (synchronous) selector can prefer a funded chain.
@@ -36,10 +45,13 @@ export async function runProxy(endpoint: string): Promise<void> {
     plasmaAccount
       .getTokenBalance(cfg.usdt0Address)
       .then((b) => balanceByNetwork.set(PLASMA_NETWORK, b))
-      .catch(() => undefined)
+      .catch(() => undefined),
   ]);
 
-  const selectRequirements = (_version: number, requirements: PaymentRequirements[]): PaymentRequirements => {
+  const selectRequirements = (
+    _version: number,
+    requirements: PaymentRequirements[],
+  ): PaymentRequirements => {
     const affordable = requirements.find((r) => {
       const balance = balanceByNetwork.get(r.network);
       return balance !== undefined && balance >= BigInt(r.amount);
@@ -54,7 +66,7 @@ export async function runProxy(endpoint: string): Promise<void> {
 
   const mcp = new Server(
     { name: `paidmcp-proxy:${new URL(baseUrl).hostname}`, version: "0.1.0" },
-    { capabilities: { tools: {} } }
+    { capabilities: { tools: {} } },
   );
 
   mcp.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -66,20 +78,26 @@ export async function runProxy(endpoint: string): Promise<void> {
   });
 
   mcp.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const response = await paidFetch(`${baseUrl}/tools/${request.params.name}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request.params.arguments ?? {})
-    });
+    const response = await paidFetch(
+      `${baseUrl}/tools/${request.params.name}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request.params.arguments ?? {}),
+      },
+    );
 
     if (!response.ok) {
       const text = await response.text();
       const paymentResponseHeader =
-        response.headers.get("payment-response") ?? response.headers.get("x-payment-response");
+        response.headers.get("payment-response") ??
+        response.headers.get("x-payment-response");
       let detail = text;
       if (paymentResponseHeader) {
         try {
-          const decoded = JSON.parse(Buffer.from(paymentResponseHeader, "base64").toString("utf8"));
+          const decoded = JSON.parse(
+            Buffer.from(paymentResponseHeader, "base64").toString("utf8"),
+          );
           detail = JSON.stringify(decoded, null, 2);
         } catch {
           detail = paymentResponseHeader;

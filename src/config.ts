@@ -10,7 +10,7 @@ const UserConfigSchema = z.object({
   baseRpcUrl: z.string().url(),
   plasmaRpcUrl: z.string().url(),
   usdcAddress: evmAddress,
-  usdt0Address: evmAddress
+  usdt0Address: evmAddress,
 });
 
 export type UserConfig = z.infer<typeof UserConfigSchema>;
@@ -25,7 +25,9 @@ export function getConfigPath(): string {
 export function loadConfig(): UserConfig {
   const path = getConfigPath();
   if (!existsSync(path)) {
-    throw new Error(`Missing config file at ${path}. Run "paidmcp init" first.`);
+    throw new Error(
+      `Missing config file at ${path}. Run "paidmcp init" first.`,
+    );
   }
   return UserConfigSchema.parse(JSON.parse(readFileSync(path, "utf-8")));
 }

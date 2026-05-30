@@ -5,17 +5,25 @@ import { mnemonicToAccount } from "viem/accounts";
 import { ExactEvmScheme } from "@x402/evm";
 import { x402Client, x402HTTPClient } from "@x402/fetch";
 
-const cfg = JSON.parse(readFileSync(join(homedir(), ".paidmcp", "config.json"), "utf-8"));
+const cfg = JSON.parse(
+  readFileSync(join(homedir(), ".paidmcp", "config.json"), "utf-8"),
+);
 const account = mnemonicToAccount(cfg.seedPhrase);
-const signer = { address: account.address, signTypedData: (m) => account.signTypedData(m) };
-const client = new x402Client((_v, r) => r[0]).register("eip155:8453", new ExactEvmScheme(signer));
+const signer = {
+  address: account.address,
+  signTypedData: (m) => account.signTypedData(m),
+};
+const client = new x402Client((_v, r) => r[0]).register(
+  "eip155:8453",
+  new ExactEvmScheme(signer),
+);
 const http = new x402HTTPClient(client);
 
-const url = "http://localhost:4021/tools/get_price";
+const url = process.argv[2] ?? "http://localhost:4021/tools/get_price";
 const first = await fetch(url, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ id: "bitcoin" })
+  body: JSON.stringify({ id: "bitcoin" }),
 });
 const pr = http.getPaymentRequiredResponse((n) => first.headers.get(n), {});
 const payload = await client.createPaymentPayload(pr);
@@ -28,8 +36,8 @@ async function settle(label, p) {
     body: JSON.stringify({
       x402Version: p.x402Version,
       paymentPayload: p,
-      paymentRequirements: req
-    })
+      paymentRequirements: req,
+    }),
   });
   console.log(label, res.status, await res.text());
 }
@@ -37,6 +45,9 @@ async function settle(label, p) {
 await settle("localhost resource", payload);
 const pub = {
   ...payload,
-  resource: { ...payload.resource, url: "https://crypto-prices.paidmcp.dev/tools/get_price" }
+  resource: {
+    ...payload.resource,
+    url: "https://crypto-prices.paidmcp.dev/tools/get_price",
+  },
 };
 await settle("public https resource", pub);

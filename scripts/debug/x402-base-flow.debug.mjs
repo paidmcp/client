@@ -1,27 +1,35 @@
 /**
- * Full x402 flow with debug: 402 -> sign -> paid retry -> decode all headers.
+ * Full x402 flow with debug output:
+ * 402 -> sign -> paid retry -> decode payment headers.
  */
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { mnemonicToAccount } from "viem/accounts";
 import { ExactEvmScheme } from "@x402/evm";
-import { x402Client, x402HTTPClient, wrapFetchWithPayment } from "@x402/fetch";
+import { x402Client, x402HTTPClient } from "@x402/fetch";
 
 const BASE = "eip155:8453";
 const PLASMA = "eip155:9745";
 const url = process.argv[2] ?? "http://localhost:4021/tools/get_price";
 
-const cfg = JSON.parse(readFileSync(join(homedir(), ".paidmcp", "config.json"), "utf-8"));
+const cfg = JSON.parse(
+  readFileSync(join(homedir(), ".paidmcp", "config.json"), "utf-8"),
+);
 const account = mnemonicToAccount(cfg.seedPhrase);
 const signer = {
   address: account.address,
-  signTypedData: (m) => account.signTypedData(m)
+  signTypedData: (m) => account.signTypedData(m),
 };
 
-const balanceByNetwork = new Map([[BASE, 1_000_000n], [PLASMA, 0n]]);
+const balanceByNetwork = new Map([
+  [BASE, 1_000_000n],
+  [PLASMA, 0n],
+]);
 const selectRequirements = (_v, reqs) => {
-  const picked = reqs.find((r) => balanceByNetwork.get(r.network) >= BigInt(r.amount)) ?? reqs[0];
+  const picked =
+    reqs.find((r) => balanceByNetwork.get(r.network) >= BigInt(r.amount)) ??
+    reqs[0];
   console.log("Selected:", picked.network, picked.amount, picked.asset);
   return picked;
 };
@@ -35,12 +43,15 @@ const httpClient = new x402HTTPClient(client);
 const first = await fetch(url, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ id: "bitcoin" })
+  body: JSON.stringify({ id: "bitcoin" }),
 });
 console.log("\n=== STEP 1: unpaid ===");
 console.log("status:", first.status);
 const getHeader = (n) => first.headers.get(n);
-const paymentRequired = httpClient.getPaymentRequiredResponse(getHeader, first.status === 402 ? {} : undefined);
+const paymentRequired = httpClient.getPaymentRequiredResponse(
+  getHeader,
+  first.status === 402 ? {} : undefined,
+);
 console.log("resource.url:", paymentRequired.resource?.url);
 console.log("accepts:", JSON.stringify(paymentRequired.accepts, null, 2));
 
@@ -57,8 +68,8 @@ const verifyRes = await fetch("https://facilitator.heurist.xyz/verify", {
   body: JSON.stringify({
     x402Version: paymentPayload.x402Version,
     paymentPayload,
-    paymentRequirements: requirements
-  })
+    paymentRequirements: requirements,
+  }),
 });
 const verifyBody = await verifyRes.json();
 console.log("\n=== STEP 3: Heurist /verify ===");
@@ -70,12 +81,13 @@ const payHeaders = httpClient.encodePaymentSignatureHeader(paymentPayload);
 const paid = await fetch(url, {
   method: "POST",
   headers: { "Content-Type": "application/json", ...payHeaders },
-  body: JSON.stringify({ id: "bitcoin" })
+  body: JSON.stringify({ id: "bitcoin" }),
 });
 console.log("\n=== STEP 4: paid request to server ===");
 console.log("status:", paid.status);
 const pr = paid.headers.get("payment-response");
-if (pr) console.log("PAYMENT-RESPONSE:", Buffer.from(pr, "base64").toString("utf8"));
+if (pr)
+  console.log("PAYMENT-RESPONSE:", Buffer.from(pr, "base64").toString("utf8"));
 console.log("body:", await paid.text());
 
 // Step 5: Heurist settle directly (only if verify passed)
@@ -86,8 +98,8 @@ if (verifyBody.isValid) {
     body: JSON.stringify({
       x402Version: paymentPayload.x402Version,
       paymentPayload,
-      paymentRequirements: requirements
-    })
+      paymentRequirements: requirements,
+    }),
   });
   const settleBody = await settleRes.json();
   console.log("\n=== STEP 5: Heurist /settle (direct) ===");

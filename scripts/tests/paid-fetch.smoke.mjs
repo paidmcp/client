@@ -1,4 +1,4 @@
-console.log("=== paid fetch test (viem signer) ===");
+console.log("=== paid fetch smoke test (real wallet) ===");
 const { readFileSync } = await import("node:fs");
 const { homedir } = await import("node:os");
 const { join } = await import("node:path");
@@ -12,17 +12,29 @@ const PLASMA = "eip155:9745";
 const url = process.argv[2] ?? "http://localhost:4021/tools/get_price";
 const signerType = process.argv[3] ?? "wdk";
 
-const cfg = JSON.parse(readFileSync(join(homedir(), ".paidmcp", "config.json"), "utf-8"));
-const baseAccount = await new WalletManagerEvm(cfg.seedPhrase, { provider: cfg.baseRpcUrl }).getAccount();
-const plasmaAccount = await new WalletManagerEvm(cfg.seedPhrase, { provider: cfg.plasmaRpcUrl }).getAccount();
+const cfg = JSON.parse(
+  readFileSync(join(homedir(), ".paidmcp", "config.json"), "utf-8"),
+);
+const baseAccount = await new WalletManagerEvm(cfg.seedPhrase, {
+  provider: cfg.baseRpcUrl,
+}).getAccount();
+const plasmaAccount = await new WalletManagerEvm(cfg.seedPhrase, {
+  provider: cfg.plasmaRpcUrl,
+}).getAccount();
 
 const balanceByNetwork = new Map();
 await Promise.all([
-  baseAccount.getTokenBalance(cfg.usdcAddress).then((b) => balanceByNetwork.set(BASE, b)),
-  plasmaAccount.getTokenBalance(cfg.usdt0Address).then((b) => balanceByNetwork.set(PLASMA, b)).catch(() => null)
+  baseAccount
+    .getTokenBalance(cfg.usdcAddress)
+    .then((b) => balanceByNetwork.set(BASE, b)),
+  plasmaAccount
+    .getTokenBalance(cfg.usdt0Address)
+    .then((b) => balanceByNetwork.set(PLASMA, b))
+    .catch(() => null),
 ]);
 console.log("Payer:", baseAccount.address);
 console.log("Base USDC:", balanceByNetwork.get(BASE)?.toString());
+console.log("Plasma USDT0:", balanceByNetwork.get(PLASMA)?.toString());
 
 const selectRequirements = (_v, requirements) => {
   const affordable = requirements.find((r) => {
@@ -39,13 +51,13 @@ if (signerType === "viem") {
   const account = mnemonicToAccount(cfg.seedPhrase);
   signer = {
     address: account.address,
-    signTypedData: (message) => account.signTypedData(message)
+    signTypedData: (message) => account.signTypedData(message),
   };
   console.log("Signer: viem");
 } else {
   signer = {
     address: baseAccount.address,
-    signTypedData: (message) => baseAccount.signTypedData(message)
+    signTypedData: (message) => baseAccount.signTypedData(message),
   };
   console.log("Signer: wdk");
 }
@@ -58,13 +70,17 @@ const paidFetch = wrapFetchWithPayment(fetch, client);
 const res = await paidFetch(url, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ id: "bitcoin" })
+  body: JSON.stringify({ id: "bitcoin" }),
 });
 
 console.log("Status:", res.status, res.statusText);
-const paymentResponse = res.headers.get("payment-response") ?? res.headers.get("x-payment-response");
+const paymentResponse =
+  res.headers.get("payment-response") ?? res.headers.get("x-payment-response");
 if (paymentResponse) {
-  console.log("PAYMENT-RESPONSE decoded:", Buffer.from(paymentResponse, "base64").toString("utf8"));
+  console.log(
+    "PAYMENT-RESPONSE decoded:",
+    Buffer.from(paymentResponse, "base64").toString("utf8"),
+  );
 }
 const text = await res.text();
 console.log("Body:", text);

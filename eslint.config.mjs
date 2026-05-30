@@ -10,8 +10,8 @@ export default tseslint.config(
     files: ["src/**/*.ts"],
     languageOptions: {
       globals: {
-        ...globals.node
-      }
-    }
-  }
+        ...globals.node,
+      },
+    },
+  },
 );
