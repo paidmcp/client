@@ -57,3 +57,7 @@ Scripts are grouped by intent:
 
 - `scripts/tests/*` for repeatable checks.
 - `scripts/debug/*` for deep troubleshooting flows.
+
+## License
+
+MIT. See `LICENSE`.
