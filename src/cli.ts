@@ -3,13 +3,14 @@ import { Command } from "commander";
 import { printConnectSnippet } from "./connect.js";
 import { init } from "./init.js";
 import { runProxy } from "./run.js";
+import { version } from "./version.js";
 import { showWallet } from "./wallet.js";
 
 const program = new Command();
 program
   .name("paidmcp")
   .description("Local proxy for paid MCP servers")
-  .version("0.1.0");
+  .version(version);
 
 program
   .command("init")

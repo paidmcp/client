@@ -10,6 +10,7 @@ import { x402Client } from "@x402/fetch";
 import { wrapFetchWithPayment } from "@x402/fetch";
 import type { PaymentRequirements } from "@x402/fetch";
 import { BASE_NETWORK, PLASMA_NETWORK, loadConfig } from "./config.js";
+import { version } from "./version.js";
 
 export async function runProxy(endpoint: string): Promise<void> {
   const cfg = loadConfig();
@@ -65,7 +66,7 @@ export async function runProxy(endpoint: string): Promise<void> {
   const paidFetch = wrapFetchWithPayment(fetch, client);
 
   const mcp = new Server(
-    { name: `paidmcp-proxy:${new URL(baseUrl).hostname}`, version: "0.1.0" },
+    { name: `paidmcp-proxy:${new URL(baseUrl).hostname}`, version },
     { capabilities: { tools: {} } },
   );
 

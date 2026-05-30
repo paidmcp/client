@@ -4,16 +4,43 @@
   "private": false,
   "type": "module",
   "description": "Local stdio proxy for paid MCP servers with x402 handling.",
+  "license": "MIT",
+  "author": "PaidMCP",
+  "homepage": "https://paidmcp.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paidmcp/client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/paidmcp/client/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "x402",
+    "ai-agents",
+    "payments",
+    "usdc",
+    "usdt",
+    "stablecoin"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "files": [
     "dist"
   ],
   "bin": {
-    "paidmcp": "./dist/cli.js"
+    "paidmcp": "dist/cli.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "dev": "tsx src/cli.ts",
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli.js",
     "prepare": "npm run build",
+    "prepublishOnly": "npm run check",
     "start": "node dist/cli.js",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "typecheck": "tsc --noEmit",
