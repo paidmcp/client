@@ -1,29 +1,37 @@
 {
   "name": "paidmcp-client",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "description": "Local stdio proxy for paid MCP servers with x402 handling.",
+  "files": [
+    "dist"
+  ],
   "bin": {
     "paidmcp": "./dist/cli.js"
   },
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsc",
-    "start": "node dist/cli.js"
+    "prepare": "npm run build",
+    "start": "node dist/cli.js",
+    "init": "node dist/cli.js init",
+    "wallet": "node dist/cli.js wallet",
+    "connect": "node dist/cli.js connect",
+    "run": "node dist/cli.js run"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "latest",
-    "@tetherto/wdk-wallet-evm": "latest",
-    "@x402/evm": "latest",
-    "@x402/fetch": "latest",
-    "bip39": "latest",
-    "commander": "latest",
-    "zod": "latest"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@tetherto/wdk-wallet-evm": "^1.0.0-beta.12",
+    "@x402/evm": "^2.13.0",
+    "@x402/fetch": "^2.13.0",
+    "bip39": "^3.1.0",
+    "commander": "^14.0.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "latest",
-    "tsx": "latest",
-    "typescript": "latest"
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
   }
 }

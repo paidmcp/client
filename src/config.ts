@@ -3,14 +3,20 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 
+const evmAddress = z.string().regex(/^0x[a-fA-F0-9]{40}$/);
+
 const UserConfigSchema = z.object({
   seedPhrase: z.string().min(20),
-  rpcUrl: z.string().url(),
-  networkId: z.string().regex(/^eip155:\d+$/),
-  usdt0Address: z.string().regex(/^0x[a-fA-F0-9]{40}$/)
+  baseRpcUrl: z.string().url(),
+  plasmaRpcUrl: z.string().url(),
+  usdcAddress: evmAddress,
+  usdt0Address: evmAddress
 });
 
 export type UserConfig = z.infer<typeof UserConfigSchema>;
+
+export const BASE_NETWORK = "eip155:8453" as const;
+export const PLASMA_NETWORK = "eip155:9745" as const;
 
 export function getConfigPath(): string {
   return join(homedir(), ".paidmcp", "config.json");
@@ -21,6 +27,5 @@ export function loadConfig(): UserConfig {
   if (!existsSync(path)) {
     throw new Error(`Missing config file at ${path}. Run "paidmcp init" first.`);
   }
-  const raw = readFileSync(path, "utf-8");
-  return UserConfigSchema.parse(JSON.parse(raw));
+  return UserConfigSchema.parse(JSON.parse(readFileSync(path, "utf-8")));
 }
