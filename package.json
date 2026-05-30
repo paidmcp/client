@@ -15,6 +15,11 @@
     "build": "tsc",
     "prepare": "npm run build",
     "start": "node dist/cli.js",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\"",
+    "check": "npm run lint && npm run typecheck && npm run build",
     "init": "node dist/cli.js init",
     "wallet": "node dist/cli.js wallet",
     "connect": "node dist/cli.js connect",
@@ -30,8 +35,13 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@types/node": "^25.9.1",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "prettier": "^3.6.2",
     "tsx": "^4.22.3",
+    "typescript-eslint": "^8.46.4",
     "typescript": "^6.0.3"
   }
 }
