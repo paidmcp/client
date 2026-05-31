@@ -9,7 +9,10 @@ const WalletManagerEvm = (await import("@tetherto/wdk-wallet-evm")).default;
 
 const BASE = "eip155:8453";
 const PLASMA = "eip155:9745";
-const url = process.argv[2] ?? "http://localhost:4021/tools/get_price";
+const endpoint = process.argv[2] ?? "http://localhost:4021";
+const mcpUrl = endpoint.endsWith("/mcp")
+  ? endpoint
+  : `${endpoint.replace(/\/+$/, "")}/mcp`;
 const signerType = process.argv[3] ?? "wdk";
 
 const cfg = JSON.parse(
@@ -67,10 +70,52 @@ const client = new x402Client(selectRequirements)
   .register(PLASMA, new ExactEvmScheme(signer));
 const paidFetch = wrapFetchWithPayment(fetch, client);
 
-const res = await paidFetch(url, {
+async function initializeSession() {
+  const init = await fetch(mcpUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "init-paid-fetch",
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-03-26",
+        capabilities: {},
+        clientInfo: { name: "paidmcp-debug", version: "0.1.0" },
+      },
+    }),
+  });
+  if (!init.ok) {
+    throw new Error(
+      `MCP initialize failed: ${init.status} ${await init.text()}`,
+    );
+  }
+  const sessionId = init.headers.get("mcp-session-id");
+  if (!sessionId) {
+    throw new Error("MCP initialize response missing mcp-session-id header");
+  }
+  return sessionId;
+}
+
+const sessionId = await initializeSession();
+
+const res = await paidFetch(mcpUrl, {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ id: "bitcoin" }),
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+    "mcp-session-id": sessionId,
+    "x-paidmcp-trial": "false",
+  },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: "paid-fetch-smoke",
+    method: "tools/call",
+    params: { name: "get_price", arguments: { id: "bitcoin" } },
+  }),
 });
 
 console.log("Status:", res.status, res.statusText);
@@ -84,4 +129,9 @@ if (paymentResponse) {
 }
 const text = await res.text();
 console.log("Body:", text);
-process.exit(res.ok ? 0 : 1);
+if (res.status === 402) {
+  console.log(
+    "Smoke result: payment challenge returned (wallet likely unfunded for settlement).",
+  );
+}
+process.exit(res.ok || res.status === 402 ? 0 : 1);

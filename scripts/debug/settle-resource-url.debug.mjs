@@ -19,11 +19,50 @@ const client = new x402Client((_v, r) => r[0]).register(
 );
 const http = new x402HTTPClient(client);
 
-const url = process.argv[2] ?? "http://localhost:4021/tools/get_price";
-const first = await fetch(url, {
+const endpoint = process.argv[2] ?? "http://localhost:4021";
+const mcpUrl = endpoint.endsWith("/mcp")
+  ? endpoint
+  : `${endpoint.replace(/\/+$/, "")}/mcp`;
+
+const init = await fetch(mcpUrl, {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ id: "bitcoin" }),
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+  },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: "init-settle-resource-url",
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-03-26",
+      capabilities: {},
+      clientInfo: { name: "paidmcp-debug", version: "0.1.0" },
+    },
+  }),
+});
+if (!init.ok) {
+  throw new Error(`MCP initialize failed: ${init.status} ${await init.text()}`);
+}
+const sessionId = init.headers.get("mcp-session-id");
+if (!sessionId) {
+  throw new Error("MCP initialize response missing mcp-session-id header");
+}
+
+const first = await fetch(mcpUrl, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+    "mcp-session-id": sessionId,
+    "x-paidmcp-trial": "false",
+  },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: "settle-resource-url-call",
+    method: "tools/call",
+    params: { name: "get_price", arguments: { id: "bitcoin" } },
+  }),
 });
 const pr = http.getPaymentRequiredResponse((n) => first.headers.get(n), {});
 const payload = await client.createPaymentPayload(pr);
@@ -47,7 +86,7 @@ const pub = {
   ...payload,
   resource: {
     ...payload.resource,
-    url: "https://crypto-prices.paidmcp.dev/tools/get_price",
+    url: "https://crypto-prices.paidmcp.dev/mcp",
   },
 };
 await settle("public https resource", pub);

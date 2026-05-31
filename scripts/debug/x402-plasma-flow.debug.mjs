@@ -11,7 +11,10 @@ import { x402Client, x402HTTPClient } from "@x402/fetch";
 
 const PLASMA = "eip155:9745";
 const SEMANTIC = "https://x402.semanticpay.io";
-const url = process.argv[2] ?? "http://localhost:4021/tools/get_price";
+const endpoint = process.argv[2] ?? "http://localhost:4021";
+const mcpUrl = endpoint.endsWith("/mcp")
+  ? endpoint
+  : `${endpoint.replace(/\/+$/, "")}/mcp`;
 
 const cfg = JSON.parse(
   readFileSync(join(homedir(), ".paidmcp", "config.json"), "utf-8"),
@@ -34,10 +37,46 @@ const client = new x402Client(selectPlasma).register(
 );
 const httpClient = new x402HTTPClient(client);
 
-const first = await fetch(url, {
+const init = await fetch(mcpUrl, {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ id: "bitcoin" }),
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+  },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: "init-plasma-debug",
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-03-26",
+      capabilities: {},
+      clientInfo: { name: "paidmcp-debug", version: "0.1.0" },
+    },
+  }),
+});
+if (!init.ok) {
+  throw new Error(`MCP initialize failed: ${init.status} ${await init.text()}`);
+}
+const sessionId = init.headers.get("mcp-session-id");
+if (!sessionId) {
+  throw new Error("MCP initialize response missing mcp-session-id header");
+}
+const callBody = JSON.stringify({
+  jsonrpc: "2.0",
+  id: "plasma-debug-call",
+  method: "tools/call",
+  params: { name: "get_price", arguments: { id: "bitcoin" } },
+});
+
+const first = await fetch(mcpUrl, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+    "mcp-session-id": sessionId,
+    "x-paidmcp-trial": "false",
+  },
+  body: callBody,
 });
 console.log("\n=== STEP 1: unpaid ===");
 console.log("status:", first.status);
@@ -77,10 +116,16 @@ for (const path of ["/verify", "/settle"]) {
 }
 
 const payHeaders = httpClient.encodePaymentSignatureHeader(paymentPayload);
-const paid = await fetch(url, {
+const paid = await fetch(mcpUrl, {
   method: "POST",
-  headers: { "Content-Type": "application/json", ...payHeaders },
-  body: JSON.stringify({ id: "bitcoin" }),
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+    "mcp-session-id": sessionId,
+    "x-paidmcp-trial": "false",
+    ...payHeaders,
+  },
+  body: callBody,
 });
 console.log("\n=== STEP 4: paid request to server (Plasma) ===");
 console.log("status:", paid.status);

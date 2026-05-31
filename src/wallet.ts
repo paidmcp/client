@@ -13,6 +13,7 @@ function formatUnits(value: bigint, decimals = 6): string {
 
 export async function showWallet(): Promise<void> {
   const cfg = loadConfig();
+  console.log("Mode:", cfg.networkMode);
 
   const baseAccount = await new WalletManagerEvm(cfg.seedPhrase, {
     provider: cfg.baseRpcUrl,
@@ -33,5 +34,8 @@ export async function showWallet(): Promise<void> {
   );
   console.log(
     `Plasma USDT0: ${usdt0 === null ? "(unavailable)" : formatUnits(usdt0)}`,
+  );
+  console.log(
+    `Spend caps: per-call=${cfg.maxPerCallUsdt} USDT, per-session=${cfg.maxSessionUsdt} USDT`,
   );
 }

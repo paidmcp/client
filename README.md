@@ -3,9 +3,9 @@
 [![npm version](https://img.shields.io/npm/v/paidmcp-client)](https://www.npmjs.com/package/paidmcp-client)
 [![license](https://img.shields.io/npm/l/paidmcp-client)](LICENSE)
 
-`paidmcp-client` is a local stdio MCP proxy for paid MCP servers that use x402.
+`paidmcp-client` is an optional managed-wallet MCP proxy for x402-enabled MCP servers.
 
-It sits between your MCP client (Cursor or Claude Desktop) and a remote paid MCP endpoint, then handles payment negotiation and settlement automatically on each paid tool call.
+Use it when you want spend caps, confirmations, and guided onboarding. You can also connect natively to `/mcp` without this proxy.
 
 ## Requirements
 
@@ -32,7 +32,7 @@ paidmcp --help
 
 ## Quick start
 
-1. Create a local payer wallet:
+1. Create a local payer wallet config:
 
 ```bash
 npx paidmcp-client init
@@ -41,8 +41,7 @@ npx paidmcp-client init
 This creates `~/.paidmcp/config.json` with:
 
 - your seed phrase
-- RPC URLs for Base and Plasma
-- token addresses for USDC (Base) and USDT0 (Plasma)
+- testnet defaults (Base Sepolia) plus spend guardrails
 
 2. Check wallet address and balances:
 
@@ -50,7 +49,7 @@ This creates `~/.paidmcp/config.json` with:
 npx paidmcp-client wallet
 ```
 
-3. Fund the wallet with USDC on Base or USDT0 on Plasma.
+3. Fund the wallet (testnet first, then live if needed).
 
 4. Connect to your paid MCP endpoint:
 
@@ -65,6 +64,8 @@ npx paidmcp-client connect https://your-mcp-host.dev
 ```bash
 npx paidmcp-client init
 npx paidmcp-client wallet
+npx paidmcp-client wallet:import "<seed phrase>" --force --confirm OVERWRITE_PAIDMCP_CONFIG
+npx paidmcp-client doctor <endpoint>
 npx paidmcp-client connect <endpoint>
 npx paidmcp-client run <endpoint>
 ```
@@ -90,8 +91,8 @@ The command prints JSON like:
 {
   "mcpServers": {
     "your-mcp-host-dev": {
-      "command": "node",
-      "args": ["/path/to/paidmcp-client/dist/cli.js", "run", "https://your-mcp-host.dev"]
+      "command": "npx",
+      "args": ["paidmcp-client", "run", "https://your-mcp-host.dev"]
     }
   }
 }
@@ -113,14 +114,10 @@ Run commands from source:
 ```bash
 npm run init
 npm run wallet
+npm run wallet:import -- "<seed phrase>" --force --confirm OVERWRITE_PAIDMCP_CONFIG
+npm run doctor -- http://localhost:4021
 npm run connect -- http://localhost:4021
 npm run run -- http://localhost:4021
-```
-
-With MCP Inspector:
-
-```bash
-npx @modelcontextprotocol/inspector node dist/cli.js run http://localhost:4021
 ```
 
 ## Troubleshooting
@@ -141,11 +138,23 @@ If you see an error like `Run "paidmcp init" first`, create the local config:
 npx paidmcp-client init
 ```
 
+### Overwrite protection
+
+- when `~/.paidmcp/config.json` already exists, `init` / `wallet:import` will not overwrite by default
+- overwrite requires both `--force` and `--confirm OVERWRITE_PAIDMCP_CONFIG`
+- before overwrite, a timestamped backup is created in `~/.paidmcp/` as `config.backup-*.json`
+
 ### No balance / payment failure
 
 - verify your wallet has funded USDC (Base) or USDT0 (Plasma)
 - verify endpoint URL and network availability
 - run `npx paidmcp-client wallet` to confirm balances are readable
+- run `npx paidmcp-client doctor <endpoint>` for a quick endpoint check
+
+### Spend limits or confirmation stopped a call
+
+- adjust `maxPerCallUsdt`, `maxSessionUsdt`, and `confirmAboveUsdt` in `~/.paidmcp/config.json`
+- restart the MCP client after changing config
 
 ## Security notes
 
