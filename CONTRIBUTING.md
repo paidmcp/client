@@ -31,7 +31,7 @@ npm version minor --no-git-tag-version
 
 The `Release` workflow then runs the checks, publishes to npm with provenance, and creates the `vX.Y.Z` tag and GitHub Release on that commit. Versions with a suffix (`1.2.0-beta.1`) are published under the npm `next` tag and marked as pre-releases.
 
-Every step skips work that is already done, so a failed release can simply be re-run. To add a missing tag or GitHub Release for an older version, run the workflow manually (Actions → Release → Run workflow) with `ref` set to that version's commit. The workflow needs the `NPM_TOKEN` repository secret.
+Every step skips work that is already done, so a failed release can simply be re-run. To add a missing tag or GitHub Release for an older version, run the workflow manually (Actions → Release → Run workflow) with `ref` set to that version's commit. If that commit has different `.github/workflows` files than `main`, GitHub does not let the workflow create the tag, and the run stops before publishing anything. In that case, create the tag yourself (`git tag vX.Y.Z <commit> && git push origin vX.Y.Z`), then re-run the workflow. The workflow needs the `NPM_TOKEN` repository secret.
 
 ## Scope
 
