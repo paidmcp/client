@@ -35,6 +35,7 @@ jobs:
       RELEASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.sha }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,6 +72,18 @@ jobs:
             fi
             echo "::error::Tag $TAG already points at $TAG_SHA, not $SHA. Bump the version in package.json."
             exit 1
+          fi
+          # GitHub does not let this workflow's token create a tag on a
+          # commit whose .github/workflows differ from the default branch
+          # (that needs the "workflows" permission, which GITHUB_TOKEN cannot
+          # have). Stop before publishing anything and say what to do.
+          if [ -z "$TAG_SHA" ] && [ "$RELEASED" = false ]; then
+            git fetch -q --depth=1 origin "$DEFAULT_BRANCH"
+            if [ "$(git rev-parse -q --verify HEAD:.github/workflows)" != \
+                 "$(git rev-parse -q --verify FETCH_HEAD:.github/workflows)" ]; then
+              echo "::error::$SHA has different workflow files than $DEFAULT_BRANCH, so GitHub does not allow this workflow to create tag $TAG. Create the tag yourself (Releases > Draft a new release > tag $TAG, target $SHA, or: git tag $TAG $SHA && git push origin $TAG), then re-run this workflow to publish and create the release."
+              exit 1
+            fi
           fi
           case "$VERSION" in
             *-*) NPM_DIST_TAG=next; PRERELEASE=true ;;
