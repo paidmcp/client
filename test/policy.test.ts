@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import type { PaymentRequirements } from "@x402/fetch";
+import { type ClientEvmSigner, ExactEvmScheme } from "@x402/evm";
+import { x402Client } from "@x402/fetch";
+import type { PaymentRequired, PaymentRequirements } from "@x402/fetch";
 import {
   BASE_NETWORK_MAINNET,
   BASE_NETWORK_TESTNET,
@@ -11,6 +13,7 @@ import {
   normalizeEndpoint,
   selectRequirement,
   toAtomic,
+  x402SpendControls,
 } from "../src/policy.js";
 
 const PAYEE = "0x2222222222222222222222222222222222222222";
@@ -201,5 +204,71 @@ describe("normalizeEndpoint", () => {
     assert.throws(() => normalizeEndpoint("https://u:p@host.dev"));
     assert.throws(() => normalizeEndpoint("https://host.dev?x=1"));
     assert.throws(() => normalizeEndpoint("not a url"));
+  });
+});
+
+describe("x402SpendControls with the real x402 client", () => {
+  const signer: ClientEvmSigner = {
+    address: "0x1111111111111111111111111111111111111111",
+    signTypedData: async () => `0x${"11".repeat(65)}`,
+  };
+  const liveCfg = {
+    networkMode: "live" as const,
+    maxPerCallUsdt: 0.25,
+    usdt0Address: PLASMA_DEFAULTS.usdt0Address,
+  };
+  const paymentRequired = (requirement: PaymentRequirements) =>
+    ({
+      x402Version: 2,
+      resource: { url: "mcp://tool/x" },
+      accepts: [requirement],
+    }) as unknown as PaymentRequired;
+  const usdt0 = req({
+    network: PLASMA_NETWORK,
+    asset: PLASMA_DEFAULTS.usdt0Address,
+    amount: "10000",
+    extra: { name: "USDT0", version: "1" },
+  });
+
+  function client(controls?: ReturnType<typeof x402SpendControls>) {
+    const c = new x402Client((_v, reqs) => reqs[0])
+      .register(BASE_NETWORK_MAINNET, new ExactEvmScheme(signer))
+      .register(PLASMA_NETWORK, new ExactEvmScheme(signer));
+    if (controls) c.setSpendControls(controls);
+    return c;
+  }
+
+  test("x402's defaults alone would refuse Plasma USDT0", async () => {
+    await assert.rejects(
+      client().createPaymentPayload(paymentRequired(usdt0)),
+      /spendControls/,
+    );
+  });
+
+  test("with the client's settings, Plasma USDT0 is paid in live mode", async () => {
+    const payload = await client(
+      x402SpendControls(liveCfg),
+    ).createPaymentPayload(paymentRequired(usdt0));
+    assert.equal(payload.accepted.network, PLASMA_NETWORK);
+  });
+
+  test("x402's cap follows maxPerCallUsdt instead of its $1 default", async () => {
+    const usdc = (usd: number) =>
+      req({
+        network: BASE_NETWORK_MAINNET,
+        asset: USDC_LIVE,
+        amount: String(toAtomic(usd)),
+        extra: { name: "USD Coin", version: "2" },
+      });
+    const generous = x402SpendControls({ ...liveCfg, maxPerCallUsdt: 6 });
+    // $5 passes with maxPerCallUsdt=6 (x402's default would stop at $1)...
+    await client(generous).createPaymentPayload(paymentRequired(usdc(5)));
+    // ...and $0.30 is refused with maxPerCallUsdt=0.25.
+    await assert.rejects(
+      client(x402SpendControls(liveCfg)).createPaymentPayload(
+        paymentRequired(usdc(0.3)),
+      ),
+      /maxAmountPerPayment/,
+    );
   });
 });

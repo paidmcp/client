@@ -13,8 +13,13 @@ import {
 import WalletManagerEvm from "@tetherto/wdk-wallet-evm";
 import { type ClientEvmSigner, ExactEvmScheme } from "@x402/evm";
 import { x402Client, wrapFetchWithPayment } from "@x402/fetch";
-import type { PaymentRequirements } from "@x402/fetch";
+import type { PaymentRequired, PaymentRequirements } from "@x402/fetch";
 import { getLedgerPath, loadConfig } from "./config.js";
+import {
+  type PaymentRequiredLike,
+  detectPaymentRequest,
+  isSameSitePointer,
+} from "./inband.js";
 import { SpendLedger } from "./ledger.js";
 import {
   MODE_DEFAULTS,
@@ -25,11 +30,14 @@ import {
   normalizeEndpoint,
   selectRequirement,
   toAtomic,
+  x402SpendControls,
 } from "./policy.js";
 import { version } from "./version.js";
 
 // stdout carries the MCP protocol: every log line must go to stderr.
 const log = (message: string) => console.error(`[paidmcp] ${message}`);
+
+type CallToolParams = Parameters<Client["callTool"]>[0];
 
 export async function runProxy(endpoint: string): Promise<void> {
   const cfg = loadConfig();
@@ -86,6 +94,7 @@ export async function runProxy(endpoint: string): Promise<void> {
   if (isLive) {
     paymentClient.register(PLASMA_NETWORK, new ExactEvmScheme(signer));
   }
+  paymentClient.setSpendControls(x402SpendControls(cfg));
 
   paymentClient.onBeforePaymentCreation(async (ctx) => {
     const requirement = ctx.selectedRequirements;
@@ -160,13 +169,119 @@ export async function runProxy(endpoint: string): Promise<void> {
   mcp.setRequestHandler(CallToolRequestSchema, async (request) => {
     await refreshBalances();
     try {
-      return await upstream.callTool(request.params);
+      const result = await upstream.callTool(request.params);
+      // Payment requests can also arrive inside the tool result (official
+      // x402 MCP transport, or a pointer to a paid HTTP URL). At most one
+      // paid retry is made per call.
+      const paymentRequest = detectPaymentRequest(result);
+      if (!paymentRequest) return result;
+      if (paymentRequest.kind === "pointer") {
+        return await payPointer(paymentRequest);
+      }
+      return await payInBand(request.params, paymentRequest.paymentRequired);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      log(`tool call failed: ${message}`);
+      const raw = error instanceof Error ? error.message : String(error);
+      // x402's own spend-control errors name its internal option; point the
+      // user at the setting they actually control.
+      const message = raw.includes("spendControls.maxAmountPerPayment")
+        ? `The price is above your per-call cap (maxPerCallUsdt=${cfg.maxPerCallUsdt}). Raise "maxPerCallUsdt" in ~/.paidmcp/config.json to allow it.`
+        : raw;
+      log(`tool call failed: ${raw}`);
       return { isError: true, content: [{ type: "text", text: message }] };
     }
   });
+
+  /** Official x402 MCP transport: retry with params._meta["x402/payment"]. */
+  async function payInBand(
+    params: CallToolParams,
+    paymentRequired: PaymentRequiredLike,
+  ) {
+    const payload = await paymentClient.createPaymentPayload(
+      paymentRequired as unknown as PaymentRequired,
+    );
+    const retry = await upstream.callTool({
+      ...params,
+      _meta: { ...(params._meta ?? {}), "x402/payment": payload },
+    });
+    const again = detectPaymentRequest(retry);
+    if (again) {
+      // Same request as before: the server most likely never read the
+      // payment. A different error is the server's verdict on it.
+      const unchanged =
+        JSON.stringify(again.paymentRequired) ===
+        JSON.stringify(paymentRequired);
+      const reason = again.paymentRequired.error;
+      log(
+        `server did not accept the payment for ${params.name}: ${unchanged ? "it ignored the payment" : (reason ?? "payment rejected")}`,
+      );
+      const text = unchanged
+        ? `The server did not accept the payment for "${params.name}": it asked for payment again without reading it, so it probably does not support paying inside MCP tool calls (x402 "_meta" payments). The server confirmed no payment; no further payment was attempted. The signed authorization expires on its own and counts toward your spend caps.`
+        : `The server rejected the payment for "${params.name}"${reason ? `: ${reason}` : ""}. No further payment was attempted.`;
+      return { isError: true, content: [{ type: "text", text }] };
+    }
+    const receipt = (
+      retry._meta as
+        { "x402/payment-response"?: { transaction?: string } } | undefined
+    )?.["x402/payment-response"];
+    if (receipt?.transaction) {
+      log(`payment settled for ${params.name}: ${receipt.transaction}`);
+    }
+    return retry;
+  }
+
+  /** The result points at a paid HTTP URL: pay it and return its data. */
+  async function payPointer(request: { url: string; method: string }) {
+    if (!isSameSitePointer(request.url, baseUrl)) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: `Refused to pay ${request.url}: payment links must stay on ${host} and use https.`,
+          },
+        ],
+      };
+    }
+    if (request.method !== "GET") {
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: `The server asks for payment at ${request.url} with ${request.method}, which this client does not support.`,
+          },
+        ],
+      };
+    }
+    const response = await paidFetch(request.url, {
+      headers: { accept: "application/json" },
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: `Paid request to ${request.url} failed with HTTP ${response.status}: ${text.slice(0, 500)}`,
+          },
+        ],
+      };
+    }
+    let structuredContent: Record<string, unknown> | undefined;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        structuredContent = parsed;
+      }
+    } catch {
+      // not JSON; return the text as is
+    }
+    return {
+      content: [{ type: "text" as const, text }],
+      ...(structuredContent ? { structuredContent } : {}),
+    };
+  }
 
   mcp.setRequestHandler(ListResourcesRequestSchema, async (request) => {
     return upstream.listResources(request.params);

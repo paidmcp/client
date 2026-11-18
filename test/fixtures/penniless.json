@@ -1,0 +1,37 @@
+{
+  "source": "https://penniless-json-repair.sjaman.workers.dev/mcp tools/call repair_json (unpaid), captured 2026-11-18",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"x402Version\":2,\"error\":\"Payment required to access this tool\",\"resource\":{\"url\":\"mcp://tool/repair_json\",\"description\":\"Repairs malformed LLM JSON: strips Markdown fences and prose wrappers, fixes trailing commas, converts Python literals (True/False/None) and single/unquoted keys, removes comments, recovers balanced JSON from truncated output. Body {input} -> {ok, repaired, applied}.\",\"mimeType\":\"application/json\",\"serviceName\":\"Penniless JSON Repair\",\"tags\":[\"json\",\"llm\",\"repair\",\"agent-tools\"]},\"accepts\":[{\"scheme\":\"exact\",\"network\":\"eip155:8453\",\"amount\":\"1000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"payTo\":\"0x3D98800c64C345950E1eAaa076D88C12d1BF5F37\",\"maxTimeoutSeconds\":300,\"extra\":{\"name\":\"USD Coin\",\"version\":\"2\"}}]}"
+      }
+    ],
+    "structuredContent": {
+      "x402Version": 2,
+      "error": "Payment required to access this tool",
+      "resource": {
+        "url": "mcp://tool/repair_json",
+        "description": "Repairs malformed LLM JSON: strips Markdown fences and prose wrappers, fixes trailing commas, converts Python literals (True/False/None) and single/unquoted keys, removes comments, recovers balanced JSON from truncated output. Body {input} -> {ok, repaired, applied}.",
+        "mimeType": "application/json",
+        "serviceName": "Penniless JSON Repair",
+        "tags": ["json", "llm", "repair", "agent-tools"]
+      },
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "amount": "1000",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "payTo": "0x3D98800c64C345950E1eAaa076D88C12d1BF5F37",
+          "maxTimeoutSeconds": 300,
+          "extra": {
+            "name": "USD Coin",
+            "version": "2"
+          }
+        }
+      ]
+    },
+    "isError": true
+  }
+}
