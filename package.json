@@ -1,6 +1,6 @@
 {
   "name": "paidmcp-client",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": false,
   "type": "module",
   "description": "Local stdio proxy for paid MCP servers with x402 handling.",
@@ -42,11 +42,12 @@
     "prepare": "npm run build",
     "prepublishOnly": "npm run check",
     "start": "node dist/cli.js",
-    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
-    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.mjs\" --max-warnings=0",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "test": "node --import tsx --test test/*.test.ts",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\"",
-    "check": "npm run lint && npm run typecheck && npm run build",
+    "check": "npm run lint && npm run typecheck && npm run build && npm test",
     "init": "node dist/cli.js init",
     "wallet": "node dist/cli.js wallet",
     "wallet:import": "node dist/cli.js wallet:import",
@@ -61,10 +62,10 @@
     "debug:settle-resource-url": "node scripts/debug/settle-resource-url.debug.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@tetherto/wdk-wallet-evm": "^1.0.0-beta.12",
-    "@x402/evm": "^2.13.0",
-    "@x402/fetch": "^2.13.0",
+    "@x402/evm": "^2.31.0",
+    "@x402/fetch": "^2.31.0",
     "bip39": "^3.1.0",
     "commander": "^14.0.3",
     "zod": "^4.4.3"
@@ -76,7 +77,7 @@
     "globals": "^16.5.0",
     "prettier": "^3.6.2",
     "tsx": "^4.22.3",
-    "typescript-eslint": "^8.46.4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.46.4"
   }
 }

@@ -15,49 +15,57 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: write # create GitHub Release
-  id-token: write # required for npm provenance
+# Nothing by default; each job asks only for what it needs.
+permissions: {}
+
+env:
+  # Untrusted input is passed through env, never pasted into scripts.
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
-  publish:
+  publish-npm:
+    if: github.event_name == 'push' || inputs.publish_npm
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/setup-node@v4
-        if: github.event_name == 'push' || inputs.publish_npm
         with:
-          node-version: "20"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
           cache: npm
 
       - name: Verify tag matches package.json version
-        if: github.event_name == 'push' || inputs.publish_npm
         run: |
           PKG_VERSION="$(node -p "require('./package.json').version")"
-          TAG_VERSION="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
-          TAG_VERSION="${TAG_VERSION#v}"
+          TAG_VERSION="${RELEASE_TAG#v}"
           if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
             echo "::error::Tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
             exit 1
           fi
 
       - run: npm ci
-        if: github.event_name == 'push' || inputs.publish_npm
-
       - run: npm run check
-        if: github.event_name == 'push' || inputs.publish_npm
 
       - run: npm publish --provenance
-        if: github.event_name == 'push' || inputs.publish_npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+  github-release:
+    needs: publish-npm
+    # Still create the GitHub Release when npm publishing was not requested.
+    if: always() && (needs.publish-npm.result == 'success' || needs.publish-npm.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          generate_release_notes: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$RELEASE_TAG" --verify-tag --generate-notes

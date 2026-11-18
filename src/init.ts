@@ -1,17 +1,24 @@
 import WalletManagerEvm from "@tetherto/wdk-wallet-evm";
-import { generateMnemonic } from "bip39";
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { generateMnemonic, validateMnemonic } from "bip39";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { MODE_DEFAULTS } from "./policy.js";
 
+// RPC URLs and token addresses are left out on purpose: they default per
+// networkMode, so switching to "live" needs no other edits.
 const DEFAULT_CONFIG = {
   networkMode: "test" as const,
-  baseRpcUrl: "https://sepolia.base.org",
-  plasmaRpcUrl: "https://rpc.plasma.to",
-  usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-  usdt0Address: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb",
   maxPerCallUsdt: 0.25,
   maxSessionUsdt: 5,
+  maxDailyUsdt: 10,
   confirmAboveUsdt: 0.05,
 };
 
@@ -40,6 +47,12 @@ async function saveConfig(
   seedPhrase: string,
   options: SaveConfigOptions,
 ): Promise<void> {
+  seedPhrase = seedPhrase.trim().replace(/\s+/g, " ").toLowerCase();
+  if (!validateMnemonic(seedPhrase)) {
+    throw new Error(
+      "That is not a valid BIP-39 seed phrase (check the words and their order). Nothing was changed.",
+    );
+  }
   const configDir = join(homedir(), ".paidmcp");
   const configPath = join(configDir, "config.json");
 
@@ -62,20 +75,28 @@ async function saveConfig(
     console.log("Existing config backup:", backupPath);
   }
 
+  // Keep the user's existing settings (mode, caps, overrides) on overwrite.
+  const previous = hasExistingConfig ? readExistingSettings(configPath) : {};
+  const settings = { ...DEFAULT_CONFIG, ...previous };
   writeFileSync(
     configPath,
-    JSON.stringify({ seedPhrase, ...DEFAULT_CONFIG }, null, 2),
-    { mode: 0o600 },
+    JSON.stringify({ seedPhrase, ...settings }, null, 2),
+    {
+      mode: 0o600,
+    },
   );
+  // `mode` only applies when the file is created; tighten existing files too.
+  chmodSync(configPath, 0o600);
+  chmodSync(configDir, 0o700);
 
   const account = await new WalletManagerEvm(seedPhrase, {
-    provider: DEFAULT_CONFIG.baseRpcUrl,
+    provider: MODE_DEFAULTS.test.baseRpcUrl,
   }).getAccount();
   console.log("Wallet created.");
   console.log("Address:", account.address);
   console.log("Config:", configPath);
   console.log(
-    `Network mode: ${DEFAULT_CONFIG.networkMode} (Base Sepolia defaults)`,
+    `Network mode: ${settings.networkMode}${settings.networkMode === "test" ? " (Base Sepolia)" : ""}`,
   );
   console.log(
     "Security: this config file contains your seed phrase in plaintext. Do not commit or share it.",
@@ -86,6 +107,19 @@ async function saveConfig(
   console.log(
     "You can test with Base Sepolia USDC first, then switch to live settings later.",
   );
+}
+
+function readExistingSettings(configPath: string): Record<string, unknown> {
+  try {
+    const existing = JSON.parse(readFileSync(configPath, "utf-8")) as Record<
+      string,
+      unknown
+    >;
+    delete existing.seedPhrase;
+    return existing;
+  } catch {
+    return {};
+  }
 }
 
 function createTimestampedBackup(
@@ -100,5 +134,6 @@ function createTimestampedBackup(
     counter += 1;
   }
   copyFileSync(configPath, backupPath);
+  chmodSync(backupPath, 0o600);
   return backupPath;
 }

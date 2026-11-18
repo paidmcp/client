@@ -25,13 +25,21 @@ program
   .description("Show wallet information")
   .action(async () => showWallet());
 program
-  .command("wallet:import <seedPhrase>")
+  .command("wallet:import [seedPhrase]")
   .option("--force", "Overwrite existing config (requires --confirm)")
   .option("--confirm <text>", "Explicit confirmation text for overwrite")
-  .description("Import an existing seed phrase")
-  .action(async (seedPhrase, options) =>
-    importWallet(seedPhrase, Boolean(options.force), options.confirm),
-  );
+  .description(
+    "Import an existing seed phrase (read from stdin when not given, which keeps it out of shell history)",
+  )
+  .action(async (seedPhrase: string | undefined, options) => {
+    if (seedPhrase) {
+      console.error(
+        "Warning: a seed phrase passed as an argument can end up in shell history and process lists. Prefer: paidmcp wallet:import < seed.txt",
+      );
+    }
+    const phrase = seedPhrase ?? (await readSeedFromStdin());
+    await importWallet(phrase, Boolean(options.force), options.confirm);
+  });
 program
   .command("connect <endpoint>")
   .description("Print MCP client config snippet")
@@ -49,4 +57,13 @@ program
   .description("Run local health checks")
   .action(async (endpoint) => runDoctor(endpoint));
 
-program.parse();
+await program.parseAsync();
+
+async function readSeedFromStdin(): Promise<string> {
+  if (process.stdin.isTTY) {
+    console.error("Enter your seed phrase, then press Enter and Ctrl-D:");
+  }
+  let input = "";
+  for await (const chunk of process.stdin) input += chunk;
+  return input;
+}
