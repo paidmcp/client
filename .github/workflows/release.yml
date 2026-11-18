@@ -1,71 +1,125 @@
 name: Release
 
+# Releases automatically when main has a package.json version that has not
+# been released yet: runs the checks, publishes to npm, then creates the
+# vX.Y.Z tag and GitHub Release. Every step skips work that is already done,
+# so a failed run can simply be re-run. To release, bump "version" in
+# package.json (npm version patch|minor|major --no-git-tag-version) and merge.
+
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Existing tag to publish as a GitHub Release"
-        required: true
-        default: "v0.1.0"
-      publish_npm:
-        description: "Also publish to npm"
-        type: boolean
-        default: false
+      ref:
+        description: "Commit or branch to release (its package.json version is used). Use to backfill a missed tag/release."
+        required: false
+        default: "main"
 
-# Nothing by default; each job asks only for what it needs.
+# Nothing by default; the job asks only for what it needs.
 permissions: {}
 
-env:
-  # Untrusted input is passed through env, never pasted into scripts.
-  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  publish-npm:
-    if: github.event_name == 'push' || inputs.publish_npm
+  release:
+    if: github.repository == 'paidmcp/client'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # create the tag and GitHub Release
       id-token: write # npm provenance
+    env:
+      # Untrusted input is passed through env, never pasted into scripts.
+      RELEASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.sha }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
+
+      - name: Work out what needs releasing
+        id: plan
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          NAME="$(node -p "require('./package.json').name")"
+          TAG="v$VERSION"
+          SHA="$(git rev-parse HEAD)"
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            PUBLISHED=true
+          else
+            PUBLISHED=false
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            RELEASED=true
+          else
+            RELEASED=false
+          fi
+          # A tag that already exists must point at this commit; otherwise
+          # the version was not bumped and we refuse to move it.
+          # Commit the tag points at (peeled "^{}" line for annotated tags).
+          TAG_SHA="$(git ls-remote --tags origin | awk -v t="refs/tags/$TAG" \
+            '$2 == t "^{}" { peeled = $1 } $2 == t { plain = $1 }
+             END { print (peeled != "" ? peeled : plain) }')"
+          if [ -n "$TAG_SHA" ] && [ "$TAG_SHA" != "$SHA" ]; then
+            if [ "$PUBLISHED" = true ] && [ "$RELEASED" = true ]; then
+              echo "$TAG is already released from another commit; nothing to do."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::Tag $TAG already points at $TAG_SHA, not $SHA. Bump the version in package.json."
+            exit 1
+          fi
+          case "$VERSION" in
+            *-*) NPM_DIST_TAG=next; PRERELEASE=true ;;
+            *) NPM_DIST_TAG=latest; PRERELEASE=false ;;
+          esac
+          {
+            echo "version=$VERSION"
+            echo "tag=$TAG"
+            echo "sha=$SHA"
+            echo "published=$PUBLISHED"
+            echo "released=$RELEASED"
+            echo "npm_dist_tag=$NPM_DIST_TAG"
+            echo "prerelease=$PRERELEASE"
+            if [ "$PUBLISHED" = true ] && [ "$RELEASED" = true ]; then
+              echo "skip=true"
+            else
+              echo "skip=false"
+            fi
+          } >> "$GITHUB_OUTPUT"
+          echo "$NAME $VERSION: published on npm=$PUBLISHED, GitHub Release=$RELEASED"
 
       - uses: actions/setup-node@v4
+        if: steps.plan.outputs.skip == 'false'
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
           cache: npm
 
-      - name: Verify tag matches package.json version
+      - name: Install and check
+        if: steps.plan.outputs.skip == 'false'
         run: |
-          PKG_VERSION="$(node -p "require('./package.json').version")"
-          TAG_VERSION="${RELEASE_TAG#v}"
-          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::Tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
-            exit 1
-          fi
+          npm ci
+          npm run check
 
-      - run: npm ci
-      - run: npm run check
-
-      - run: npm publish --provenance
+      - name: Publish to npm
+        if: steps.plan.outputs.skip == 'false' && steps.plan.outputs.published == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_DIST_TAG: ${{ steps.plan.outputs.npm_dist_tag }}
+        run: npm publish --provenance --access public --tag "$NPM_DIST_TAG"
 
-  github-release:
-    needs: publish-npm
-    # Still create the GitHub Release when npm publishing was not requested.
-    if: always() && (needs.publish-npm.result == 'success' || needs.publish-npm.result == 'skipped')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Create GitHub Release
+      - name: Create tag and GitHub Release
+        if: steps.plan.outputs.skip == 'false' && steps.plan.outputs.released == 'false'
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: gh release create "$RELEASE_TAG" --verify-tag --generate-notes
+          TAG: ${{ steps.plan.outputs.tag }}
+          SHA: ${{ steps.plan.outputs.sha }}
+          PRERELEASE: ${{ steps.plan.outputs.prerelease }}
+        run: |
+          FLAGS=""
+          [ "$PRERELEASE" = true ] && FLAGS="--prerelease"
+          # Creates the tag on $SHA if it does not exist yet.
+          gh release create "$TAG" --target "$SHA" --title "$TAG" --generate-notes $FLAGS
