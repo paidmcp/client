@@ -33,9 +33,9 @@ export async function showWallet(): Promise<void> {
     `Base   USDC:  ${usdc === null ? "(unavailable)" : formatUnits(usdc)}`,
   );
   console.log(
-    `Plasma USDT0: ${usdt0 === null ? "(unavailable)" : formatUnits(usdt0)}`,
+    `Plasma USDT0: ${usdt0 === null ? "(unavailable)" : formatUnits(usdt0)}${cfg.networkMode === "live" ? "" : " (used in live mode only)"}`,
   );
   console.log(
-    `Spend caps: per-call=${cfg.maxPerCallUsdt} USDT, per-session=${cfg.maxSessionUsdt} USDT`,
+    `Spend caps (USD): per call ${cfg.maxPerCallUsdt}, per session ${cfg.maxSessionUsdt}, per day ${cfg.maxDailyUsdt}; ask to confirm at ${cfg.confirmAboveUsdt}+`,
   );
 }
