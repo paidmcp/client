@@ -1,0 +1,16 @@
+{
+  "source": "https://x402.tokenizen.nl/mcp tools/call scan_contract (unpaid), captured 2026-11-18",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "PAYMENT REQUIRED to start the scan.\n\nAmount:  5.00 USDC\nNetwork: Base mainnet (eip155:8453)\nPay to:  0x015Eb036560216B3051339061FF68A207E0fe88f\nAsset:   USDC — 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\n\nAfter paying, retry scan_contract with the same repo_url.\nTerms: https://x402.tokenizen.nl/terms"
+      },
+      {
+        "type": "text",
+        "text": "{\"x402Version\":2,\"accepts\":[{\"scheme\":\"exact\",\"network\":\"eip155:8453\",\"amount\":\"5000000\",\"maxAmountRequired\":\"5000000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"payTo\":\"0x015Eb036560216B3051339061FF68A207E0fe88f\",\"maxTimeoutSeconds\":300,\"extra\":{\"name\":\"USD Coin\",\"version\":\"2\"}}]}"
+      }
+    ],
+    "isError": false
+  }
+}

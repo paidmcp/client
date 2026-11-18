@@ -99,6 +99,18 @@ How payments are checked:
 
 Set `"networkMode": "live"` to pay on mainnet. RPC URLs and token addresses follow the mode automatically.
 
+## Supported payment styles
+
+Paid MCP servers ask for payment in different ways. The proxy handles all three that appear on [paidmcp.dev](https://paidmcp.dev), with the same caps and approvals:
+
+| Style                                                                                                       | How the server asks                                  | How the proxy pays                                                              |
+| ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------- |
+| HTTP 402 (e.g. [paidmcp/template](https://github.com/paidmcp/template))                                     | the `/mcp` request gets HTTP 402                     | retries the request with a `PAYMENT-SIGNATURE` header                           |
+| x402 MCP transport ([official spec](https://github.com/coinbase/x402/blob/main/specs/transports-v2/mcp.md)) | a tool result containing `{ x402Version, accepts }`  | retries the tool call once with `_meta["x402/payment"]`                         |
+| Payment link                                                                                                | a tool result with `{ url, status: 402, challenge }` | pays that URL over HTTP 402 and returns its response (same host and https only) |
+
+The proxy pays at most once per tool call. If a server asks again after being paid, the call fails with an explanation instead of paying again.
+
 ## Configure Cursor or Claude Desktop
 
 Generate a config snippet for a paid MCP endpoint:

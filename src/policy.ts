@@ -174,3 +174,30 @@ export function formatUsd(atomic: bigint): string {
     .replace(/0+$/, "");
   return `$${fraction ? `${whole}.${fraction}` : whole}`;
 }
+
+/**
+ * Settings for x402's built-in spend controls. They default to $1 per payment
+ * and to the tokens x402 knows (USDC, not Plasma USDT0), which would block
+ * payments the user allowed and silently refuse every USDT0 payment. Align
+ * them with this client's policy: the cap is maxPerCallUsdt, and USDT0 is
+ * allowed in live mode with the same cap.
+ */
+export function x402SpendControls(cfg: {
+  networkMode: NetworkMode;
+  maxPerCallUsdt: number;
+  usdt0Address: string;
+}) {
+  return {
+    maxAmountPerPayment: `$${cfg.maxPerCallUsdt}`,
+    allowedAssets:
+      cfg.networkMode === "live"
+        ? [
+            {
+              network: PLASMA_NETWORK,
+              asset: cfg.usdt0Address,
+              maxAmountPerPayment: toAtomic(cfg.maxPerCallUsdt).toString(),
+            },
+          ]
+        : [],
+  };
+}

@@ -1,0 +1,87 @@
+{
+  "source": "https://sigtap-mcp.sigtap.workers.dev/mcp tools/call catalog (unpaid), captured 2026-11-18",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"server\": \"sigtap-agent-tools\",\n  \"version\": \"1.0.0\",\n  \"network\": \"eip155:8453\",\n  \"currency\": \"USDC on Base\",\n  \"facilitator\": \"https://facilitator.payai.network\",\n  \"how_to_pay\": \"Call any paid tool; you get a PaymentRequired challenge; sign with any x402 client and retry with _meta[\\\"x402/payment\\\"] (clients with x402 middleware do this automatically).\",\n  \"paid_tools\": [\n    {\n      \"tool\": \"deliverability_audit\",\n      \"price_usd\": 0.003,\n      \"description\": \"SPF/DKIM/DMARC deliverability audit for a sending domain\"\n    },\n    {\n      \"tool\": \"email_grade\",\n      \"price_usd\": 0.005,\n      \"description\": \"12-point cold email score with concrete fixes\"\n    },\n    {\n      \"tool\": \"email_template\",\n      \"price_usd\": 0.01,\n      \"description\": \"Personalized cold email from proven templates\"\n    },\n    {\n      \"tool\": \"hash_text\",\n      \"price_usd\": 0.001,\n      \"description\": \"SHA-256/384/512, hex, base64, base64url and CRC32 of a UTF-8 string\"\n    },\n    {\n      \"tool\": \"jwt_decode\",\n      \"price_usd\": 0.001,\n      \"description\": \"Decode a JWT header+payload with safety flags (never verifies the signature)\"\n    },\n    {\n      \"tool\": \"uuid_batch\",\n      \"price_usd\": 0.001,\n      \"description\": \"Batch random IDs: UUIDv4, UUIDv7, ULID or nanoid\"\n    },\n    {\n      \"tool\": \"slugify\",\n      \"price_usd\": 0.001,\n      \"description\": \"Unicode-aware url-safe slug (latin + Cyrillic transliteration)\"\n    },\n    {\n      \"tool\": \"json_tools\",\n      \"price_usd\": 0.001,\n      \"description\": \"Flatten JSON to dot paths or convert rows to CSV\"\n    },\n    {\n      \"tool\": \"regex_test\",\n      \"price_usd\": 0.001,\n      \"description\": \"Regex matches with groups, count and a backtracking-risk heuristic\"\n    },\n    {\n      \"tool\": \"crypto_price\",\n      \"price_usd\": 0.002,\n      \"description\": \"Coinbase spot/buy/sell price with spread percent\"\n    },\n    {\n      \"tool\": \"domain_age\",\n      \"price_usd\": 0.003,\n      \"description\": \"Domain registration date, age in days and registrar via RDAP\"\n    },\n    {\n      \"tool\": \"weather\",\n      \"price_usd\": 0.001,\n      \"description\": \"Current weather + next 3h temperatures (open-meteo)\"\n    }\n  ],\n  \"free_tools\": [\n    \"catalog\"\n  ],\n  \"free_previews_http\": [\n    \"https://sigtap-outreach-api.sigtap.workers.dev/hash-preview?text=...\",\n    \"https://sigtap-outreach-api.sigtap.workers.dev/score-preview?subject=...\"\n  ],\n  \"docs\": \"https://github.com/unnamedaiagent/sigtap-agent-tools\"\n}"
+      }
+    ],
+    "structuredContent": {
+      "server": "sigtap-agent-tools",
+      "version": "1.0.0",
+      "network": "eip155:8453",
+      "currency": "USDC on Base",
+      "facilitator": "https://facilitator.payai.network",
+      "how_to_pay": "Call any paid tool; you get a PaymentRequired challenge; sign with any x402 client and retry with _meta[\"x402/payment\"] (clients with x402 middleware do this automatically).",
+      "paid_tools": [
+        {
+          "tool": "deliverability_audit",
+          "price_usd": 0.003,
+          "description": "SPF/DKIM/DMARC deliverability audit for a sending domain"
+        },
+        {
+          "tool": "email_grade",
+          "price_usd": 0.005,
+          "description": "12-point cold email score with concrete fixes"
+        },
+        {
+          "tool": "email_template",
+          "price_usd": 0.01,
+          "description": "Personalized cold email from proven templates"
+        },
+        {
+          "tool": "hash_text",
+          "price_usd": 0.001,
+          "description": "SHA-256/384/512, hex, base64, base64url and CRC32 of a UTF-8 string"
+        },
+        {
+          "tool": "jwt_decode",
+          "price_usd": 0.001,
+          "description": "Decode a JWT header+payload with safety flags (never verifies the signature)"
+        },
+        {
+          "tool": "uuid_batch",
+          "price_usd": 0.001,
+          "description": "Batch random IDs: UUIDv4, UUIDv7, ULID or nanoid"
+        },
+        {
+          "tool": "slugify",
+          "price_usd": 0.001,
+          "description": "Unicode-aware url-safe slug (latin + Cyrillic transliteration)"
+        },
+        {
+          "tool": "json_tools",
+          "price_usd": 0.001,
+          "description": "Flatten JSON to dot paths or convert rows to CSV"
+        },
+        {
+          "tool": "regex_test",
+          "price_usd": 0.001,
+          "description": "Regex matches with groups, count and a backtracking-risk heuristic"
+        },
+        {
+          "tool": "crypto_price",
+          "price_usd": 0.002,
+          "description": "Coinbase spot/buy/sell price with spread percent"
+        },
+        {
+          "tool": "domain_age",
+          "price_usd": 0.003,
+          "description": "Domain registration date, age in days and registrar via RDAP"
+        },
+        {
+          "tool": "weather",
+          "price_usd": 0.001,
+          "description": "Current weather + next 3h temperatures (open-meteo)"
+        }
+      ],
+      "free_tools": ["catalog"],
+      "free_previews_http": [
+        "https://sigtap-outreach-api.sigtap.workers.dev/hash-preview?text=...",
+        "https://sigtap-outreach-api.sigtap.workers.dev/score-preview?subject=..."
+      ],
+      "docs": "https://github.com/unnamedaiagent/sigtap-agent-tools"
+    }
+  }
+}

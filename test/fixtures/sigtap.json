@@ -1,0 +1,12 @@
+{
+  "source": "https://sigtap-mcp.sigtap.workers.dev/mcp tools/call jwt_decode (unpaid), captured 2026-11-18",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"x402Version\":2,\"error\":\"Payment required to access this tool\",\"resource\":{\"url\":\"mcp://tool/jwt_decode\",\"description\":\"Decode a JWT header+payload with safety flags (never verifies the signature) ($0.001)\",\"mimeType\":\"application/json\"},\"accepts\":[{\"scheme\":\"exact\",\"network\":\"eip155:8453\",\"amount\":\"1000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"payTo\":\"0x963d450CA601d52B5D92a8540Aea8D4272223ae1\",\"maxTimeoutSeconds\":60,\"extra\":{\"name\":\"USD Coin\",\"version\":\"2\"}}]}"
+      }
+    ],
+    "isError": true
+  }
+}
