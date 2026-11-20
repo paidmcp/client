@@ -135,3 +135,29 @@ export function isSameSitePointer(
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+/**
+ * Only a single JSON-RPC `tools/call` may be paid. Every other request the
+ * MCP transport makes (the GET event stream, initialize, tools/list, ...)
+ * goes through plain fetch, so a server answering those with HTTP 402
+ * gets an error instead of a payment.
+ */
+export function payOnlyForToolCalls(
+  paidFetch: typeof fetch,
+  plainFetch: typeof fetch = fetch,
+): typeof fetch {
+  return async (input, init) => {
+    const request = new Request(input, init);
+    if (request.method === "POST") {
+      try {
+        const message = JSON.parse(await request.clone().text());
+        if (isObject(message) && message.method === "tools/call") {
+          return paidFetch(request);
+        }
+      } catch {
+        // not a JSON-RPC body
+      }
+    }
+    return plainFetch(request);
+  };
+}

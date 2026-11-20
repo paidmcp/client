@@ -44,6 +44,8 @@ const challenge = (tool: string) => ({
 
 /** Payments the fake server received, by channel. */
 const received = { meta: 0, pointer: 0 };
+/** GET /mcp (the event stream) requests, and how many came with a payment. */
+const eventStream = { requests: 0, paid: 0 };
 let baseUrl = "";
 
 function isValidPayment(payment: unknown): boolean {
@@ -171,6 +173,23 @@ before(async () => {
       res.end("{}");
       return;
     }
+    if (req.url === "/mcp" && req.method === "GET") {
+      // Like a server that charges for every request: the event stream
+      // answers 402. The proxy must never pay for it.
+      eventStream.requests += 1;
+      if (req.headers["payment-signature"] || req.headers["x-payment"]) {
+        eventStream.paid += 1;
+      }
+      res.statusCode = 402;
+      res.setHeader(
+        "payment-required",
+        Buffer.from(JSON.stringify(challenge("event-stream"))).toString(
+          "base64",
+        ),
+      );
+      res.end("{}");
+      return;
+    }
     if (req.url === "/mcp" && req.method === "POST") {
       // Stateless: a fresh server and transport per request.
       const server = paidMcpServer();
@@ -294,5 +313,12 @@ describe("paying in-band x402 requests through the proxy", () => {
     });
     assert.equal(result.isError, true);
     assert.match(textOf(result), /did not accept the payment/);
+  });
+
+  test("only tool calls are paid, never the GET event stream", () => {
+    // The transport opened the event stream and got 402 back...
+    assert.ok(eventStream.requests > 0, "the event stream was not requested");
+    // ...and the proxy did not pay for it.
+    assert.equal(eventStream.paid, 0);
   });
 });
