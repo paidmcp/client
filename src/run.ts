@@ -19,6 +19,7 @@ import {
   type PaymentRequiredLike,
   detectPaymentRequest,
   isSameSitePointer,
+  payOnlyForToolCalls,
 } from "./inband.js";
 import { SpendLedger } from "./ledger.js";
 import {
@@ -158,7 +159,7 @@ export async function runProxy(endpoint: string): Promise<void> {
   );
   await upstream.connect(
     new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), {
-      fetch: paidFetch,
+      fetch: payOnlyForToolCalls(paidFetch),
     }),
   );
 
